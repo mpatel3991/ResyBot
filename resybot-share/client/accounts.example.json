@@ -1,0 +1,7 @@
+[
+    {
+        "account_name": "My Resy Account",
+        "auth_token": "PASTE_YOUR_RESY_AUTH_TOKEN_HERE",
+        "payment_id": "PASTE_YOUR_PAYMENT_ID_HERE"
+    }
+]

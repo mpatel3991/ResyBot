@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResyGrabber</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 24px;
+    letter-spacing: -0.5px;
+  }
+  .section {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+  .field { flex: 1; display: flex; flex-direction: column; }
+  label {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  input, select, textarea {
+    background: #12121f;
+    border: 1px solid #2a2a40;
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #00d4ff;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .btn-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-start { background: #22c55e; color: #fff; }
+  .btn-start:hover:not(:disabled) { background: #16a34a; }
+  .btn-stop { background: #ef4444; color: #fff; }
+  .btn-stop:hover:not(:disabled) { background: #dc2626; }
+  .btn-clear {
+    flex: 0 0 auto;
+    padding: 12px 20px;
+    background: #2a2a40;
+    color: #aaa;
+    font-size: 13px;
+  }
+  .btn-clear:hover { background: #3a3a50; color: #e0e0e0; }
+  .btn-save {
+    padding: 8px 16px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 13px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+  .btn-save:hover { background: #1d4ed8; }
+  .btn-row-sm { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-preset-save {
+    padding: 8px 16px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+  .btn-preset-save:hover { background: #1d4ed8; }
+  .btn-preset-del {
+    padding: 8px 16px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+  .btn-preset-del:hover { background: #b91c1c; }
+  #log-container {
+    background: #0a0a14;
+    border: 1px solid #1a1a2e;
+    border-radius: 10px;
+    padding: 14px;
+    height: 380px;
+    overflow-y: auto;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .log-line {
+    padding: 1px 0;
+    word-break: break-all;
+  }
+  .log-line .ts { color: #555; margin-right: 8px; }
+  .log-line.info { color: #8ec8f0; }
+  .log-line.error { color: #f87171; }
+  .log-line.success { color: #4ade80; }
+  .log-line.stopped { color: #fbbf24; }
+  .log-line.notification { color: #c084fc; }
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .status-dot.idle { background: #555; }
+  .status-dot.running { background: #22c55e; animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>ResyGrabber</h1>
+
+  <!-- Saved Tasks -->
+  <div class="section">
+    <div class="section-title">Saved Tasks</div>
+    <div class="row">
+      <div class="field">
+        <label>Load a saved task</label>
+        <select id="preset-select">
+          <option value="">-- Select a saved task --</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row-sm">
+      <button class="btn-preset-save" type="button" onclick="savePreset()">Save Current Form</button>
+      <button class="btn-preset-del" type="button" onclick="deletePreset()">Delete Selected</button>
+    </div>
+  </div>
+
+  <!-- Account Selection -->
+  <div class="section">
+    <div class="section-title">Account</div>
+    <div class="row">
+      <div class="field">
+        <label>Saved Account</label>
+        <select id="account-select">
+          <option value="">-- Enter manually below --</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Account Name</label>
+        <input id="account_name" placeholder="My Account">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Auth Token *</label>
+        <input id="auth_token" placeholder="Your Resy auth token">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Payment ID *</label>
+        <input id="payment_id" placeholder="e.g. 1234567">
+      </div>
+    </div>
+    <button class="btn-save" type="button" onclick="saveAccount()">Save Account</button>
+  </div>
+
+  <!-- Reservation Details -->
+  <div class="section">
+    <div class="section-title">Reservation</div>
+    <div class="row">
+      <div class="field">
+        <label>Venue ID *</label>
+        <input id="venue_id" placeholder="e.g. 3015">
+      </div>
+      <div class="field">
+        <label>Party Size *</label>
+        <input id="party_size" type="number" min="1" value="2">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;margin-bottom:6px">Date Ranges * <span style="color:#555;font-weight:400">(add one or more)</span></label>
+      <div id="date-ranges">
+        <div class="row date-range-row">
+          <div class="field">
+            <label>Start Date</label>
+            <input type="date" class="dr-start">
+          </div>
+          <div class="field">
+            <label>End Date</label>
+            <input type="date" class="dr-end">
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeDateRange(this)" title="Remove">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="btn-preset-save" style="margin-top:8px;padding:6px 14px;font-size:12px" onclick="addDateRange()">+ Add Date Range</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;margin-bottom:6px">Time Windows * <span style="color:#555;font-weight:400">(add one or more)</span></label>
+      <div id="time-windows">
+        <div class="row time-window-row">
+          <div class="field">
+            <label>Start (0-23)</label>
+            <input type="number" class="tw-start" min="0" max="23" value="17">
+          </div>
+          <div class="field">
+            <label>End (0-23)</label>
+            <input type="number" class="tw-end" min="0" max="23" value="21">
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeTimeWindow(this)" title="Remove">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="btn-preset-save" style="margin-top:8px;padding:6px 14px;font-size:12px" onclick="addTimeWindow()">+ Add Window</button>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Table Type</label>
+        <input id="table_type" placeholder="e.g. Dining Room, Bar (blank = any)">
+      </div>
+      <div class="field">
+        <label>Delay (ms)</label>
+        <input id="delay" type="number" min="1000" value="60000">
+      </div>
+    </div>
+  </div>
+
+  <!-- Optional -->
+  <div class="section">
+    <div class="section-title">Optional</div>
+    <div class="row">
+      <div class="field">
+        <label>Proxies (one per line: ip:port:user:pass)</label>
+        <textarea id="proxies" rows="3" placeholder="Optional"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Discord Webhook URL</label>
+        <input id="discord_webhook" placeholder="Optional">
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="btn-row">
+    <button class="btn-start" id="btn-start" onclick="startTask()">START</button>
+    <button class="btn-stop" id="btn-stop" onclick="stopTask()" disabled>STOP</button>
+    <button class="btn-clear" onclick="clearLogs()">Clear</button>
+  </div>
+
+  <!-- Log Window -->
+  <div class="status-bar">
+    <span><span class="status-dot idle" id="status-dot"></span><span id="status-text">Idle</span></span>
+  </div>
+  <div id="log-container"></div>
+</div>
+
+<script>
+const logContainer = document.getElementById('log-container');
+const btnStart = document.getElementById('btn-start');
+const btnStop = document.getElementById('btn-stop');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+let accounts = [];
+let presets = [];
+
+// Load saved presets on startup
+fetch('/api/presets')
+  .then(r => r.json())
+  .then(data => {
+    presets = data;
+    refreshPresetDropdown();
+  })
+  .catch(() => {});
+
+function refreshPresetDropdown() {
+  const sel = document.getElementById('preset-select');
+  sel.innerHTML = '<option value="">-- Select a saved task --</option>';
+  presets.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = p.preset_name;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('preset-select').addEventListener('change', function() {
+  const idx = this.value;
+  if (idx === '') return;
+  const p = presets[idx];
+  const fieldMap = ['venue_id','party_size','table_type','delay','account_name','proxies','discord_webhook'];
+  fieldMap.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && p[id] !== undefined) el.value = p[id];
+  });
+  // Restore date ranges
+  if (p.date_ranges) setDateRanges(p.date_ranges);
+  else if (p.start_date && p.end_date) setDateRanges([[p.start_date, p.end_date]]);
+  // Restore time windows
+  if (p.time_windows) setTimeWindows(p.time_windows);
+  else if (p.start_time && p.end_time) setTimeWindows([[parseInt(p.start_time), parseInt(p.end_time)]]);
+  // Try to match account in dropdown and fill credentials
+  const accIdx = accounts.findIndex(a => a.account_name === p.account_name);
+  if (accIdx >= 0) {
+    document.getElementById('account-select').value = accIdx;
+    document.getElementById('auth_token').value = accounts[accIdx].auth_token || '';
+    document.getElementById('payment_id').value = accounts[accIdx].payment_id || '';
+  }
+  appendLog('[INFO] Loaded task preset: ' + p.preset_name);
+});
+
+function addDateRange() {
+  const container = document.getElementById('date-ranges');
+  const row = document.createElement('div');
+  row.className = 'row date-range-row';
+  row.style.marginTop = '8px';
+  row.innerHTML = `
+    <div class="field"><label>Start Date</label><input type="date" class="dr-start"></div>
+    <div class="field"><label>End Date</label><input type="date" class="dr-end"></div>
+    <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+      <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeDateRange(this)" title="Remove">&#x2715;</button>
+    </div>`;
+  container.appendChild(row);
+}
+
+function removeDateRange(btn) {
+  const container = document.getElementById('date-ranges');
+  if (container.children.length <= 1) { alert('You need at least one date range.'); return; }
+  btn.closest('.date-range-row').remove();
+}
+
+function getDateRanges() {
+  const rows = document.querySelectorAll('.date-range-row');
+  const ranges = [];
+  rows.forEach(row => {
+    const s = row.querySelector('.dr-start').value;
+    const e = row.querySelector('.dr-end').value;
+    if (s && e) ranges.push([s, e]);
+  });
+  return ranges;
+}
+
+function setDateRanges(ranges) {
+  const container = document.getElementById('date-ranges');
+  container.innerHTML = '';
+  if (!ranges || ranges.length === 0) ranges = [['', '']];
+  ranges.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'row date-range-row';
+    if (i > 0) row.style.marginTop = '8px';
+    row.innerHTML = `
+      <div class="field"><label>Start Date</label><input type="date" class="dr-start" value="${r[0]}"></div>
+      <div class="field"><label>End Date</label><input type="date" class="dr-end" value="${r[1]}"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeDateRange(this)" title="Remove">&#x2715;</button>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function addTimeWindow() {
+  const container = document.getElementById('time-windows');
+  const row = document.createElement('div');
+  row.className = 'row time-window-row';
+  row.style.marginTop = '8px';
+  row.innerHTML = `
+    <div class="field"><label>Start (0-23)</label><input type="number" class="tw-start" min="0" max="23" value="17"></div>
+    <div class="field"><label>End (0-23)</label><input type="number" class="tw-end" min="0" max="23" value="21"></div>
+    <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+      <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeTimeWindow(this)" title="Remove">&#x2715;</button>
+    </div>`;
+  container.appendChild(row);
+}
+
+function removeTimeWindow(btn) {
+  const container = document.getElementById('time-windows');
+  if (container.children.length <= 1) { alert('You need at least one time window.'); return; }
+  btn.closest('.time-window-row').remove();
+}
+
+function getTimeWindows() {
+  const rows = document.querySelectorAll('.time-window-row');
+  const windows = [];
+  rows.forEach(row => {
+    const s = parseInt(row.querySelector('.tw-start').value);
+    const e = parseInt(row.querySelector('.tw-end').value);
+    if (!isNaN(s) && !isNaN(e)) windows.push([s, e]);
+  });
+  return windows;
+}
+
+function setTimeWindows(windows) {
+  const container = document.getElementById('time-windows');
+  container.innerHTML = '';
+  if (!windows || windows.length === 0) windows = [[17, 21]];
+  windows.forEach((w, i) => {
+    const row = document.createElement('div');
+    row.className = 'row time-window-row';
+    if (i > 0) row.style.marginTop = '8px';
+    row.innerHTML = `
+      <div class="field"><label>Start (0-23)</label><input type="number" class="tw-start" min="0" max="23" value="${w[0]}"></div>
+      <div class="field"><label>End (0-23)</label><input type="number" class="tw-end" min="0" max="23" value="${w[1]}"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <button type="button" class="btn-clear" style="padding:8px 10px;font-size:16px;margin:0" onclick="removeTimeWindow(this)" title="Remove">&#x2715;</button>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function savePreset() {
+  const name = prompt('Enter a name for this task preset:');
+  if (!name || !name.trim()) return;
+  const fields = ['venue_id','party_size','table_type','delay','account_name','proxies','discord_webhook'];
+  const payload = { preset_name: name.trim() };
+  fields.forEach(id => payload[id] = document.getElementById(id).value);
+  payload.time_windows = getTimeWindows();
+  payload.date_ranges = getDateRanges();
+  fetch('/api/presets', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    presets.push(payload);
+    refreshPresetDropdown();
+    document.getElementById('preset-select').value = presets.length - 1;
+    appendLog('[INFO] Saved task preset: ' + name.trim());
+  })
+  .catch(err => alert('Failed to save: ' + err));
+}
+
+function deletePreset() {
+  const sel = document.getElementById('preset-select');
+  const idx = sel.value;
+  if (idx === '') { alert('Select a saved task first.'); return; }
+  const name = presets[idx].preset_name;
+  if (!confirm('Delete preset "' + name + '"?')) return;
+  fetch('/api/presets/' + idx, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      presets.splice(idx, 1);
+      refreshPresetDropdown();
+      appendLog('[INFO] Deleted task preset: ' + name);
+    })
+    .catch(err => alert('Failed to delete: ' + err));
+}
+
+// Load saved accounts on startup
+fetch('/api/accounts')
+  .then(r => r.json())
+  .then(data => {
+    accounts = data;
+    const sel = document.getElementById('account-select');
+    data.forEach((acc, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = acc.account_name || `Account ${i + 1}`;
+      sel.appendChild(opt);
+    });
+  })
+  .catch(() => {});
+
+document.getElementById('account-select').addEventListener('change', function() {
+  const idx = this.value;
+  if (idx === '') return;
+  const acc = accounts[idx];
+  document.getElementById('auth_token').value = acc.auth_token || '';
+  document.getElementById('payment_id').value = acc.payment_id || '';
+  document.getElementById('account_name').value = acc.account_name || '';
+});
+
+// SSE log stream
+const evtSource = new EventSource('/api/logs');
+evtSource.onmessage = function(e) {
+  appendLog(e.data);
+};
+
+function appendLog(text) {
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  const ts = new Date().toLocaleTimeString();
+
+  // Color code by content
+  if (text.includes('[ERROR]') || text.includes('failed') || text.includes('Failed'))
+    div.classList.add('error');
+  else if (text.includes('[STOPPED]'))
+    div.classList.add('stopped');
+  else if (text.includes('[INFO]') || text.includes('[DEBUG]'))
+    div.classList.add('info');
+  else if (text.includes('[Notification]'))
+    div.classList.add('notification');
+  else if (text.includes('booked') || text.includes('reservation_id'))
+    div.classList.add('success');
+
+  div.innerHTML = `<span class="ts">${ts}</span>${escapeHtml(text)}`;
+  logContainer.appendChild(div);
+  logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearLogs() {
+  logContainer.innerHTML = '';
+}
+
+function setRunning(running) {
+  btnStart.disabled = running;
+  btnStop.disabled = !running;
+  statusDot.className = 'status-dot ' + (running ? 'running' : 'idle');
+  statusText.textContent = running ? 'Running' : 'Idle';
+}
+
+function startTask() {
+  const required = ['auth_token', 'payment_id', 'venue_id', 'party_size'];
+  for (const id of required) {
+    if (!document.getElementById(id).value.trim()) {
+      alert('Please fill in: ' + id.replace(/_/g, ' '));
+      document.getElementById(id).focus();
+      return;
+    }
+  }
+  const dateRanges = getDateRanges();
+  if (dateRanges.length === 0) { alert('Add at least one date range with both start and end dates.'); return; }
+  const windows = getTimeWindows();
+  if (windows.length === 0) { alert('Add at least one time window.'); return; }
+
+  const payload = {};
+  const fields = ['auth_token','payment_id','account_name','venue_id','party_size',
+                   'table_type','delay','proxies','discord_webhook'];
+  fields.forEach(id => payload[id] = document.getElementById(id).value);
+  payload.time_windows = windows;
+  payload.date_ranges = dateRanges;
+
+  fetch('/api/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    setRunning(true);
+  })
+  .catch(err => alert('Failed to start: ' + err));
+}
+
+function stopTask() {
+  fetch('/api/stop', { method: 'POST' })
+    .then(r => r.json())
+    .catch(() => {});
+}
+
+function saveAccount() {
+  const name = document.getElementById('account_name').value.trim();
+  const token = document.getElementById('auth_token').value.trim();
+  const pid = document.getElementById('payment_id').value.trim();
+  if (!name || !token || !pid) {
+    alert('Please fill in Account Name, Auth Token, and Payment ID before saving.');
+    return;
+  }
+  fetch('/api/accounts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ account_name: name, auth_token: token, payment_id: pid })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    // Refresh the dropdown
+    const sel = document.getElementById('account-select');
+    const opt = document.createElement('option');
+    const idx = accounts.length;
+    accounts.push({ account_name: name, auth_token: token, payment_id: pid });
+    opt.value = idx;
+    opt.textContent = name;
+    sel.appendChild(opt);
+    sel.value = idx;
+    appendLog('[INFO] Account "' + name + '" saved.');
+  })
+  .catch(err => alert('Failed to save: ' + err));
+}
+
+// Poll status to detect when task finishes on its own
+setInterval(() => {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(data => setRunning(data.running))
+    .catch(() => {});
+}, 2000);
+</script>
+</body>
+</html>
